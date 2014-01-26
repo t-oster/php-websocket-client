@@ -13,16 +13,6 @@ class WebSocketClient
     const VERSION = '0.1.4';
     const TOKEN_LENGHT = 16;
 
-    const TYPE_ID_WELCOME = 0;
-    const TYPE_ID_PREFIX = 1;
-    const TYPE_ID_CALL = 2;
-    const TYPE_ID_CALLRESULT = 3;
-    const TYPE_ID_ERROR = 4;
-    const TYPE_ID_SUBSCRIBE = 5;
-    const TYPE_ID_UNSUBSCRIBE = 6;
-    const TYPE_ID_PUBLISH = 7;
-    const TYPE_ID_EVENT = 8;
-
     /** @var string $key */
     private $key;
 
@@ -116,64 +106,6 @@ class WebSocketClient
     }
 
     /**
-     * @param string $topicUri
-     * @param string $event
-     * @param array $exclude
-     * @param array $eligible
-     */
-    public function publish($topicUri, $event, array $exclude = array(), array $eligible = array())
-    {
-        $this->sendData(array(
-            self::TYPE_ID_PUBLISH,
-            $topicUri,
-            $event,
-            $exclude,
-            $eligible
-        ));
-    }
-
-    /**
-     * @param string $topicUri
-     */
-    public function subscribe($topicUri)
-    {
-        $this->sendData(array(
-            self::TYPE_ID_SUBSCRIBE,
-            $topicUri
-        ));
-    }
-
-    /**
-     * @param string $topicUri
-     */
-    public function unsubscribe($topicUri)
-    {
-        $this->sendData(array(
-            self::TYPE_ID_UNSUBSCRIBE,
-            $topicUri
-        ));
-    }
-
-    /**
-     * @param $procUri
-     * @param array $args
-     * @param callable $callback
-     */
-    public function call($procUri, array $args, Closure $callback = null)
-    {
-        $callId = self::generateAlphaNumToken(16);
-        $this->callbacks[$callId] = $callback;
-
-        $data = array(
-            self::TYPE_ID_CALL,
-            $callId,
-            $procUri
-        );
-        $data= array_merge($data, $args);
-        $this->sendData($data);
-    }
-
-    /**
      * @param $data
      * @param $header
      */
@@ -183,28 +115,8 @@ class WebSocketClient
             $this->disconnect();
             return;
         }
-
-        if (isset($data[0])) {
-            switch($data[0]) {
-                case self::TYPE_ID_WELCOME:
-                    $this->getClient()->onWelcome($data);
-                    break;
-                case self::TYPE_ID_CALLRESULT:
-                    if (isset($data[1])) {
-                        $id = $data[1];
-                        if (isset($this->callbacks[$id])) {
-                            $callback = $this->callbacks[$id];
-                            $callback((isset($data[2]) ? $data[2] : array()));
-                        }
-                    }
-                    break;
-                case self::TYPE_ID_EVENT:
-                    if (isset($data[1]) && isset($data[2])) {
-                        $this->getClient()->onEvent($data[1], $data[2]);
-                    }
-                    break;
-            }
-        }
+        
+        $this->client->onMessage($data);
     }
 
     /**
