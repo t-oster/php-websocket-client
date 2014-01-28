@@ -4,6 +4,7 @@ use React\EventLoop\StreamSelectLoop;
 use React\Socket\Connection;
 use React\Stream\Stream;
 use WebSocketClient\WebSocketClientInterface;
+use \RuntimeException;
 
 /**
  * Class WebSocketClient
@@ -76,8 +77,12 @@ class WebSocketClient
     public function connect()
     {
         $root = $this;
+        $client = stream_socket_client("tcp://{$this->getHost()}:{$this->getPort()}", $errno, $errstr);
 
-        $client = stream_socket_client("tcp://{$this->getHost()}:{$this->getPort()}");
+        if (!$client) {
+            throw new RuntimeException('Cannot connect to socket ([#'.$errno.'] '.$errstr.')');
+        }
+
         $this->setSocket(new Connection($client, $this->getLoop()));
         $this->getSocket()->on('data', function ($data) use ($root) {
             $data = $root->parseIncomingRaw($data);
@@ -115,7 +120,7 @@ class WebSocketClient
             $this->disconnect();
             return;
         }
-        
+
         $this->client->onMessage($data);
     }
 
@@ -124,7 +129,7 @@ class WebSocketClient
      * @param string $type
      * @param bool $masked
      */
-    private function sendData($data, $type = 'text', $masked = true)
+    public function sendData($data, $type = 'text', $masked = true)
     {
         if (!$this->isConnected()) {
             $this->disconnect();
@@ -149,14 +154,21 @@ class WebSocketClient
 
         if ($this->connected && !empty($response['content'])) {
             $content = trim($response['content']);
-            if (preg_match('/(\[.*\])/', $content, $match)) {
-                $content = json_decode($match[1], true);
-                if (is_array($content)) {
-                    unset($response['status']);
-                    unset($response['content']);
-                    $this->receiveData($content, $response);
-                }
 
+            //Very ugly, but does not work with it
+            //Don't know why
+            //If you do, please e-mail me ASAP!
+            $firstBracket = strpos($content, '{');
+            $lastBracket = strrpos($content, '}');
+            $content = utf8_encode(substr($content, $firstBracket, $lastBracket - 1));
+            $data = json_decode($content, true);
+
+            if (json_last_error() === JSON_ERROR_NONE) {
+                unset($response['status']);
+                unset($response['content']);
+                $this->receiveData($data, $response);
+            } else {
+                echo 'JSON decode error [#'.json_last_error().']';
             }
         }
     }
@@ -180,7 +192,6 @@ class WebSocketClient
         "User-Agent: PHPWebSocketClient/" . self::VERSION . "\r\n" .
         "Upgrade: websocket" . "\r\n" .
         "Connection: Upgrade" . "\r\n" .
-        "Sec-WebSocket-Protocol: wamp" . "\r\n" .
         "Sec-WebSocket-Version: 13" . "\r\n" . "\r\n";
     }
 
