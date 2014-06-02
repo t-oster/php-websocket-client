@@ -27,7 +27,9 @@ Here is an example of a simple WebSocket client:
 class Client implements WebSocketClient\WebSocketClientInterface {
     private $client;
 
-    public function onMessage($topic, $message) {}
+    public function onMessage($data) {
+       echo "Received (as String): ".$data;
+    }
 
     public function sendData($data) {
         $this->client->sendData($data);

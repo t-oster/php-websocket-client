@@ -153,23 +153,7 @@ class WebSocketClient
         }
 
         if ($this->connected && !empty($response['content'])) {
-            $content = trim($response['content']);
-
-            //Very ugly, but does not work with it
-            //Don't know why
-            //If you do, please e-mail me ASAP!
-            $firstBracket = strpos($content, '{');
-            $lastBracket = strrpos($content, '}');
-            $content = utf8_encode(substr($content, $firstBracket, $lastBracket - 1));
-            $data = json_decode($content, true);
-
-            if (json_last_error() === JSON_ERROR_NONE) {
-                unset($response['status']);
-                unset($response['content']);
-                $this->receiveData($data, $response);
-            } else {
-                echo 'JSON decode error [#'.json_last_error().']';
-            }
+            $this->receiveData($response['content'], $response);
         }
     }
 
