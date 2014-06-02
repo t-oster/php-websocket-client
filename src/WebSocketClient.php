@@ -2,7 +2,6 @@
 
 use React\EventLoop\StreamSelectLoop;
 use React\Socket\Connection;
-use React\Stream\Stream;
 use WebSocketClient\WebSocketClientInterface;
 use \RuntimeException;
 
@@ -153,7 +152,10 @@ class WebSocketClient
         }
 
         if ($this->connected && !empty($response['content'])) {
-            $this->receiveData($response['content'], $response);
+            //remove first two characters
+            //and newline at the end. No idea where they come from.
+            $data = utf8_encode(substr($response['content'],2,strlen($response['content'])-4));
+            $this->receiveData($data, $response);
         }
     }
 
